@@ -4,10 +4,7 @@ import { Users, UserPlus, Play, FileText, ChevronLeft, Volume2, ArrowUp, ArrowDo
 export default function ZaliTherapyApp() {
   // --- ESTADO GLOBAL ---
   const [view, setView] = useState('patients'); 
-  const [patients, setPatients] = useState([
-    { id: 1, name: 'Mateo G.', age: 6, notes: 'Sensibilidad auditiva moderada' },
-    { id: 2, name: 'Sofía R.', age: 8, notes: 'Le gusta el color azul' }
-  ]);
+  const [patients, setPatients] = useState([]);
   const [therapies, setTherapies] = useState([]);
   const [activePatient, setActivePatient] = useState(null);
 
