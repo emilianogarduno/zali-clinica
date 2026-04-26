@@ -10,7 +10,7 @@ export default function ZaliTherapyApp() {
 
   // --- ESTADO BLUETOOTH ---
   const [isConnected, setIsConnected] = useState(false);
-  const [bleDevice, setBleDevice] = useState(null);
+  const [, setBleDevice] = useState(null);
   const [bleCharacteristic, setBleCharacteristic] = useState(null);
 
   // Navegación
@@ -110,14 +110,14 @@ function WelcomeView({ onStart }) {
     <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-teal-50 to-white">
       <div className="mb-8">
         <div className="w-24 h-24 bg-teal-600 text-white rounded-full flex items-center justify-center text-5xl font-bold shadow-lg">
-          🐬
+          🐡
         </div>
       </div>
       
       <h1 className="text-4xl font-bold text-slate-800 mb-3">Zalí</h1>
-      <p className="text-lg text-slate-600 mb-2 font-semibold">Terapia Asistida por Animales</p>
+      <p className="text-lg text-slate-600 mb-2 font-semibold">Robot de asistencia para Hidroterapia en pacientes con TEA</p>
       <p className="text-slate-500 mb-12 text-sm leading-relaxed">
-        Sistema de control y seguimiento para sesiones de terapia acuática con dispositivos Bluetooth
+        Sistema de control y seguimiento para sesiones de hidroterapia con dispositivos Bluetooth
       </p>
 
       <div className="w-full space-y-4 mb-8">
