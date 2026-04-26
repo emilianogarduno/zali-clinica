@@ -3,7 +3,7 @@ import { Users, UserPlus, Play, FileText, ChevronLeft, Volume2, ArrowUp, ArrowDo
 
 export default function ZaliTherapyApp() {
   // --- ESTADO GLOBAL ---
-  const [view, setView] = useState('patients'); 
+  const [view, setView] = useState('welcome'); 
   const [patients, setPatients] = useState([]);
   const [therapies, setTherapies] = useState([]);
   const [activePatient, setActivePatient] = useState(null);
@@ -15,6 +15,7 @@ export default function ZaliTherapyApp() {
 
   // Navegación
   const goHome = () => setView('patients');
+  const goWelcome = () => setView('welcome');
   const goMenu = (patient) => { setActivePatient(patient); setView('patientMenu'); };
   
   // --- CONEXIÓN BLUETOOTH BLE ---
@@ -63,24 +64,25 @@ export default function ZaliTherapyApp() {
         {/* ENCABEZADO */}
         <header className="bg-[#0F766E] text-white p-4 flex justify-between items-center shadow-md z-10 shrink-0">
           <div className="flex items-center gap-3">
-            {view !== 'patients' && (
-              <button onClick={view === 'patientMenu' ? goHome : () => goMenu(activePatient)} className="p-1 hover:bg-teal-700 rounded-lg transition-colors">
+            {view !== 'welcome' && (
+              <button onClick={view === 'patients' ? goWelcome : goHome} className="p-1 hover:bg-teal-700 rounded-lg transition-colors">
                 <ChevronLeft size={24} />
               </button>
             )}
-            <h1 className="text-xl font-bold tracking-wide">Zalí Clínica</h1>
+            <h1 className="text-xl font-bold tracking-wide">Zalí</h1>
           </div>
           <button 
             onClick={connectBluetooth}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${isConnected ? 'bg-teal-900 text-teal-200' : 'bg-rose-500 text-white'}`}
           >
             {isConnected ? <BluetoothConnected size={14} /> : <Bluetooth size={14} />}
-            {isConnected ? 'Zalí Conectado' : 'Vincular Pez'}
+            {isConnected ? 'Conectado' : 'Vincular'}
           </button>
         </header>
 
         {/* CONTENIDO PRINCIPAL */}
         <main className="flex-1 overflow-y-auto">
+          {view === 'welcome' && <WelcomeView onStart={() => setView('patients')} />}
           {view === 'patients' && <PatientsView patients={patients} setPatients={setPatients} onSelect={goMenu} />}
           {view === 'patientMenu' && <PatientMenuView patient={activePatient} setView={setView} />}
           {view === 'metrics' && <MetricsView patient={activePatient} therapies={therapies} />}
@@ -96,6 +98,48 @@ export default function ZaliTherapyApp() {
           )}
         </main>
       </div>
+    </div>
+  );
+}
+
+// ==========================================
+// VISTA: PÁGINA DE BIENVENIDA
+// ==========================================
+function WelcomeView({ onStart }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-teal-50 to-white">
+      <div className="mb-8">
+        <div className="w-24 h-24 bg-teal-600 text-white rounded-full flex items-center justify-center text-5xl font-bold shadow-lg">
+          🐬
+        </div>
+      </div>
+      
+      <h1 className="text-4xl font-bold text-slate-800 mb-3">Zalí</h1>
+      <p className="text-lg text-slate-600 mb-2 font-semibold">Terapia Asistida por Animales</p>
+      <p className="text-slate-500 mb-12 text-sm leading-relaxed">
+        Sistema de control y seguimiento para sesiones de terapia acuática con dispositivos Bluetooth
+      </p>
+
+      <div className="w-full space-y-4 mb-8">
+        <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
+          <h3 className="font-bold text-teal-800 mb-2">🎯 Características</h3>
+          <ul className="text-sm text-teal-700 space-y-1 text-left">
+            <li>✓ Gestión de pacientes</li>
+            <li>✓ Control remoto Joystick</li>
+            <li>✓ Métricas de sesiones</li>
+            <li>✓ Conexión Bluetooth</li>
+          </ul>
+        </div>
+      </div>
+
+      <button 
+        onClick={onStart}
+        className="w-full bg-teal-600 hover:bg-teal-700 text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-teal-600/30 transition-transform active:scale-95"
+      >
+        Comenzar
+      </button>
+
+      <p className="text-xs text-slate-400 mt-8">v1.0.0</p>
     </div>
   );
 }
@@ -132,18 +176,26 @@ function PatientsView({ patients, setPatients, onSelect }) {
       </form>
 
       <div className="space-y-3">
-        {patients.map(p => (
-          <div 
-            key={p.id} onClick={() => onSelect(p)}
-            className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex justify-between items-center cursor-pointer hover:border-teal-400 hover:shadow-md transition-all"
-          >
-            <div>
-              <h3 className="font-bold text-lg text-slate-700">{p.name}</h3>
-              <p className="text-sm text-slate-400">ID: {p.id.toString().slice(-4)}</p>
-            </div>
-            <ChevronLeft size={20} className="text-slate-300 rotate-180" />
+        {patients.length === 0 ? (
+          <div className="text-center bg-slate-100 p-8 rounded-2xl border border-slate-200 mt-10">
+            <Users size={48} className="text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-500 font-medium">No hay pacientes registrados aún.</p>
+            <p className="text-slate-400 text-sm">Agrega tu primer paciente para comenzar.</p>
           </div>
-        ))}
+        ) : (
+          patients.map(p => (
+            <div 
+              key={p.id} onClick={() => onSelect(p)}
+              className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex justify-between items-center cursor-pointer hover:border-teal-400 hover:shadow-md transition-all"
+            >
+              <div>
+                <h3 className="font-bold text-lg text-slate-700">{p.name}</h3>
+                <p className="text-sm text-slate-400">ID: {p.id.toString().slice(-4)}</p>
+              </div>
+              <ChevronLeft size={20} className="text-slate-300 rotate-180" />
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
