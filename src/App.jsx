@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, Play, FileText, ChevronLeft, Volume2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Bluetooth, BluetoothConnected, StopCircle, CheckCircle, Clock } from 'lucide-react';
+import { Users, UserPlus, Play, FileText, ChevronLeft, Volume2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Bluetooth, BluetoothConnected, StopCircle, CheckCircle, Clock, Zap } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function ZaliTherapyApp() {
   // --- ESTADO GLOBAL ---
@@ -243,12 +244,20 @@ function TherapySession({ patient, sendCommand, onFinish }) {
   const [timer, setTimer] = useState(0);
   const [routineNumber, setRoutineNumber] = useState(1);
   const [metrics, setMetrics] = useState([]);
+  const [velocity, setVelocity] = useState(1); // 1=slow, 2=medium, 3=fast
 
   // Formato MM:SS
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+  };
+
+  const cycleVelocity = () => {
+    const newVelocity = velocity === 3 ? 1 : velocity + 1;
+    setVelocity(newVelocity);
+    const velocityCmd = ['S', 'M', 'F'][newVelocity - 1]; // Slow, Medium, Fast
+    sendCommand(velocityCmd);
   };
 
   useEffect(() => {
@@ -287,7 +296,7 @@ function TherapySession({ patient, sendCommand, onFinish }) {
     const finalMetrics = [...metrics, { section: `Rutina ${routineNumber}`, time: timer }];
     setMetrics(finalMetrics);
     setPhase('summary');
-    sendCommand('S'); // Detener al pez al finalizar
+    sendCommand('STOP'); // Detener al pez al finalizar
   };
 
   const saveAndExit = () => {
@@ -392,14 +401,11 @@ function TherapySession({ patient, sendCommand, onFinish }) {
         </div>
 
         <button 
-          onMouseDown={() => sendCommand('T')}
-          onMouseUp={() => sendCommand('S')}
-          onTouchStart={() => sendCommand('T')}
-          onTouchEnd={() => sendCommand('S')}
-          className="bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 shadow-lg shadow-indigo-500/30 active:scale-95"
+          onClick={cycleVelocity}
+          className="bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 shadow-lg shadow-indigo-500/30 active:scale-95 transition-all"
         >
-          <Volume2 size={24} />
-          Estímulo Auditivo
+          <Zap size={24} />
+          Velocidad: {velocity === 1 ? 'Lenta' : velocity === 2 ? 'Media' : 'Rápida'}
         </button>
       </div>
 
@@ -434,10 +440,10 @@ function JoyButton({ icon, cmd, sendCommand }) {
   return (
     <button
       onMouseDown={() => sendCommand(cmd)}
-      onMouseUp={() => sendCommand('S')}
-      onMouseLeave={() => sendCommand('S')}
+      onMouseUp={() => sendCommand('STOP')}
+      onMouseLeave={() => sendCommand('STOP')}
       onTouchStart={(e) => handleTouch(e, cmd)}
-      onTouchEnd={(e) => handleTouch(e, 'S')}
+      onTouchEnd={(e) => handleTouch(e, 'STOP')}
       className="w-16 h-16 bg-white rounded-full shadow-lg border-b-4 border-slate-300 flex items-center justify-center text-slate-600 active:border-b-0 active:translate-y-1 transition-all"
     >
       {icon}
@@ -446,10 +452,32 @@ function JoyButton({ icon, cmd, sendCommand }) {
 }
 
 // ==========================================
-// VISTA: MÉTRICAS (HISTORIAL)
+// VISTA: MÉTRICAS (HISTORIAL) CON GRÁFICOS
 // ==========================================
 function MetricsView({ patient, therapies }) {
   const patientTherapies = therapies.filter(t => t.patientId === patient.id).reverse();
+
+  // Preparar datos para gráficos
+  const chartData = patientTherapies.map((t, index) => ({
+    session: `Sesión ${index + 1}`,
+    totalTime: t.data.reduce((sum, d) => sum + d.time, 0),
+    ...t.data.reduce((acc, d) => {
+      acc[d.section.replace(/\s+/g, '_')] = d.time;
+      return acc;
+    }, {})
+  }));
+
+  // Datos para línea de tendencia
+  const trendData = patientTherapies.map((t, index) => ({
+    session: `S${index + 1}`,
+    duracion: Math.floor(t.data.reduce((sum, d) => sum + d.time, 0) / 60) // en minutos
+  }));
+
+  const getBarColors = (section) => {
+    if (section.includes('Adaptación')) return '#f59e0b';
+    if (section.includes('Rutina')) return '#14b8a6';
+    return '#6b7280';
+  };
 
   return (
     <div className="p-6">
@@ -464,27 +492,82 @@ function MetricsView({ patient, therapies }) {
           <p className="text-slate-500 font-medium">Aún no hay terapias registradas.</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {patientTherapies.map(t => (
-            <div key={t.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
-                <span className="font-bold text-slate-700">{t.date}</span>
-                <span className="text-sm text-slate-500">{t.time}</span>
+        <div className="space-y-8">
+          {/* GRÁFICO DE LÍNEA - Tendencia de duración */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">📈 Tendencia de Duración (minutos)</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="session" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                  formatter={(value) => [`${value} min`, 'Duración']}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="duracion" 
+                  stroke="#06b6d4" 
+                  dot={{ fill: '#0891b2', r: 5 }}
+                  activeDot={{ r: 7 }}
+                  name="Duración Total"
+                  strokeWidth={2}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* GRÁFICO DE BARRAS - Comparación de sesiones */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">📊 Comparación de Sesiones (segundos)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="session" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                  formatter={(value) => [`${value}s`, 'Tiempo']}
+                />
+                <Legend />
+                {Array.from(new Set(patientTherapies.flatMap(t => t.data.map(d => d.section)))).map((section) => (
+                  <Bar 
+                    key={section}
+                    dataKey={section.replace(/\s+/g, '_')} 
+                    fill={getBarColors(section)}
+                    name={section}
+                  />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* SESIONES DETALLADAS */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-bold text-slate-800">📋 Sesiones Detalladas</h3>
+            {patientTherapies.map(t => (
+              <div key={t.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+                  <span className="font-bold text-slate-700">{t.date}</span>
+                  <span className="text-sm text-slate-500">{t.time}</span>
+                </div>
+                <div className="p-0">
+                  <table className="w-full text-left text-sm">
+                    <tbody>
+                      {t.data.map((m, i) => (
+                        <tr key={i} className="border-b border-slate-50 last:border-0">
+                          <td className="p-3 pl-4 text-slate-600 font-medium">{m.section}</td>
+                          <td className="p-3 pr-4 text-right font-mono text-teal-600 font-bold">{Math.floor(m.time / 60).toString().padStart(2, '0') + ':' + (m.time % 60).toString().padStart(2, '0')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div className="p-0">
-                <table className="w-full text-left text-sm">
-                  <tbody>
-                    {t.data.map((m, i) => (
-                      <tr key={i} className="border-b border-slate-50 last:border-0">
-                        <td className="p-3 pl-4 text-slate-600 font-medium">{m.section}</td>
-                        <td className="p-3 pr-4 text-right font-mono text-teal-600 font-bold">{Math.floor(m.time / 60).toString().padStart(2, '0') + ':' + (m.time % 60).toString().padStart(2, '0')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
